@@ -1,10 +1,14 @@
-# AnimeDialog · 本地视频台词整理与人物审核
+# AnimeDialog · 台词提取、字幕生成与人物审核
 
-把动漫或电视剧视频整理成按人物分类的双语台词本，并在同一窗口中播放、审核、修改和导出。
+将动漫或电视剧视频中的台词和字幕整理成按人物分类的双语台词本，在同一窗口播放、审核、编辑并导出字幕与文档。
+
+Local dialogue transcription and subtitle editing for anime and TV series, with speaker diarization, bilingual translation, and SRT export.
 
 **当前版本：1.1.2 · Windows 11 x64 · Python 3.12+ · MIT**
 
 AnimeDialog 在本机完成视频处理。首次使用可下载模型，也可导入已有模型；模型准备好后，识别、翻译和人物建议均可离线运行。
+
+适合制作人物台词本、提取视频字幕、生成双语 SRT、核对对白和翻译字幕。
 
 ## 功能
 
@@ -101,7 +105,7 @@ py -3.12 -m venv .venv
 .venv\Scripts\python.exe main.py
 ```
 
-私有仓库需要使用有权限的 GitHub 账号克隆。`requirements-lock.txt` 记录本次 Windows 构建依赖；`bootstrap_tools.py` 从发布者下载 FFmpeg、FFprobe、Whisper.cpp 和 llama.cpp 到 `vendor/`。应用启动后，在“模型与工具”中另行准备模型。
+`requirements-lock.txt` 记录 Windows 构建依赖；`bootstrap_tools.py` 从发布者下载 FFmpeg、FFprobe、Whisper.cpp 和 llama.cpp 到 `vendor/`。应用启动后，在“模型与工具”中另行准备模型。
 
 如需使用已有项目，也可指定项目文件夹：
 
