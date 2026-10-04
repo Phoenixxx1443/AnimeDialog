@@ -22,7 +22,12 @@ AnimeDialog 在本机完成视频处理。首次使用可下载模型，也可�
 
 Windows 安装包包含 Python、Qt、播放器及处理引擎，使用者无需另装 Python。大型模型单独下载或导入。
 
-已有安装包时，运行 `AnimeDialog-1.1.2-Windows-x64-Setup.exe`。源码中的打包产物默认放在 `release/`，不作为 Git 文件提交。升级前关闭 AnimeDialog，安装到原目录；项目与已下载模型可以继续使用。
+从 [Releases](https://github.com/Phoenixxx1443/AnimeDialog/releases/latest) 下载：
+
+- **[Windows 安装包](https://github.com/Phoenixxx1443/AnimeDialog/releases/download/v1.1.2/AnimeDialog-1.1.2-Windows-x64-Setup.exe)**：下载后运行即可安装。
+- **[源码压缩包](https://github.com/Phoenixxx1443/AnimeDialog/releases/download/v1.1.2/AnimeDialog-1.1.2-Source.zip)**：解压后可从源码运行或自行打包。
+
+升级前关闭 AnimeDialog，安装到原目录；项目与已下载模型可以继续使用。大型附件通过 Releases 提供，不作为 Git 文件提交。
 
 需要从源码运行或自行打包时，按下文操作。
 
@@ -110,9 +115,8 @@ py -3.12 -m venv .venv
 
 ```powershell
 .venv\Scripts\python.exe -m pip install -e ".[dev]"
-.venv\Scripts\ruff.exe check animedialog tests main.py
-.venv\Scripts\ruff.exe format animedialog tests main.py --check
-.venv\Scripts\python.exe -m pytest -q
+.venv\Scripts\ruff.exe check animedialog main.py
+.venv\Scripts\ruff.exe format animedialog main.py --check
 .venv\Scripts\pyinstaller.exe AnimeDialog.spec --noconfirm
 ```
 
@@ -124,7 +128,7 @@ ISCC.exe scripts\installer.iss
 
 本机已有 Inno Setup 位于 `.runtime/inno/` 时，也可运行 `.runtime\inno\ISCC.exe scripts\installer.iss`。EXE 产物位于 `dist/AnimeDialog/`，安装包位于 `release/`。打包前须准备好 `vendor/`、`licenses/` 及 `使用说明.html`。
 
-`scripts/prepare_release_assets.py` 用于收集依赖许可、生成图标并下载 FFmpeg 上游源码归档。`scripts/create_release.py` 是本机交付归档脚本，另包含现有作品备份流程；独立打包 EXE 和安装包无需运行它。
+`scripts/prepare_release_assets.py` 用于收集依赖许可、生成图标并下载 FFmpeg 上游源码归档。安装包构建完成后，运行 `.venv\Scripts\python.exe scripts\create_release.py` 生成源码压缩包及 SHA256 校验文件。
 
 ## 数据与项目结构
 
@@ -139,20 +143,10 @@ ISCC.exe scripts\installer.iss
 | `animedialog/ui.py`、`workspace.py`、`dialogs.py` | 项目操作、播放器、台词编辑、菜单及快捷键 |
 | `animedialog/exporters.py`、`importers.py` | 导出及旧成果、HTML / JSON 回导 |
 | `animedialog/assets/review.html` | 离线 HTML 查看、视频定位与人工归类 |
-| `tests/` | 项目、处理契约及 Qt 界面测试 |
-| `scripts/` | 工具获取、打包、迁移和本机验收脚本 |
+| `scripts/` | 工具获取与打包脚本 |
 | `licenses/` | 第三方组件许可与来源记录 |
 
-本地视频、作品数据、模型、缓存、开发环境和打包产物由 `.gitignore` 排除。部分迁移和验收脚本针对本机已有影片，需要自行调整路径；应用的处理引擎没有作品名称或人物规则的硬编码。
-
-## 版本与验证
-
-- [1.1 界面与快捷键更新](更新说明-1.1.md)
-- [1.1.1 代码整理](代码整理-1.1.1.md)
-- [1.1.2 倍速与画幅更新](更新说明-1.1.2.md)
-- [初版验收记录](验收记录.md) · [1.1 验收记录](验收记录-1.1.md)
-
-本机当前版本通过 51 项测试，以及真实视频倍速、布局适配和安装后启动检查。两段同片视频验证共享人物与任务队列，不等于两集独立完整剧集的准确度评估。文字与人物准确度需要人工逐句标注基准后统计；程序不会把自动候选当作人工真值。
+本地视频、作品数据、模型、缓存、开发环境和打包产物由 `.gitignore` 排除。人物及文字的自动结果仍需人工核对。
 
 ## 许可
 

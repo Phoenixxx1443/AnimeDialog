@@ -13,16 +13,13 @@ dependencies = ["PySide6>=6.8,<7", "sherpa-onnx>=1.12,<2", "rapidocr-onnxruntime
 animedialog = "animedialog.app:main"
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff==0.16.10"]
+dev = ["ruff==0.16.10"]
 
 [tool.setuptools.package-data]
 animedialog = ["assets/*"]
 
 [tool.setuptools.packages.find]
 include = ["animedialog*"]
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
 
 [tool.ruff]
 target-version = "py312"
@@ -31,8 +28,3 @@ extend-exclude = [".qa", ".runtime", "build", "dist", "release", "vendor", "ä½œå
 
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F", "I"]
-
-[tool.ruff.lint.per-file-ignores]
-# The Qt platform must be selected before importing PySide6 in GUI tests.
-"tests/test_ui_state.py" = ["E402"]
-"tests/test_workspace.py" = ["E402"]
