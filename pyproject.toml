@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=70"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "animedialog"
+version = "1.1.2"
+description = "本地视频台词整理与人物审核"
+requires-python = ">=3.12"
+dependencies = ["PySide6>=6.8,<7", "sherpa-onnx>=1.12,<2", "rapidocr-onnxruntime>=1.4,<2", "numpy>=1.26,<3", "soundfile>=0.12,<1", "httpx>=0.27,<1", "python-docx>=1.1,<2", "imageio-ffmpeg>=0.6,<1"]
+
+[project.scripts]
+animedialog = "animedialog.app:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff==0.16.10"]
+
+[tool.setuptools.package-data]
+animedialog = ["assets/*"]
+
+[tool.setuptools.packages.find]
+include = ["animedialog*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = [".qa", ".runtime", "build", "dist", "release", "vendor", "作品"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+# The Qt platform must be selected before importing PySide6 in GUI tests.
+"tests/test_ui_state.py" = ["E402"]
+"tests/test_workspace.py" = ["E402"]

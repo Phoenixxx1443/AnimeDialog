@@ -1,0 +1,6 @@
+{
+  "ffmpeg": "https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz",
+  "ffmpeg_build_scripts": "https://github.com/GyanD/codexffmpeg",
+  "whisper": "https://github.com/ggml-org/whisper.cpp",
+  "llama": "https://github.com/ggml-org/llama.cpp"
+}
