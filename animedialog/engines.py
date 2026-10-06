@@ -12,7 +12,7 @@ import httpx
 from .domain import now
 from .media import hidden_flags
 from .models import model_path
-from .settings import executable
+from .settings import executable, protected_key, settings, translation_endpoint
 
 
 class Paused(Exception):
@@ -195,21 +195,36 @@ class Voices:
         ]
 
 
-class LocalSemantic:
-    def __init__(self, control, cache):
+class SemanticModel:
+    def __init__(self, control, cache, api=None):
         self.control = control
         self.cache = cache
+        self.api = api
         self.child = None
         self.log = None
         self.client = None
 
     def __enter__(self):
+        if self.api:
+            self.endpoint = translation_endpoint(self.api["url"])
+            if not isinstance(self.api.get("model"), str) or not self.api["model"].strip():
+                raise ValueError("请填写翻译模型名称。")
+            key = protected_key(
+                settings().get("translation_keys", {}).get(self.endpoint, ""), decrypt=True
+            )
+            self.client = httpx.Client(
+                timeout=httpx.Timeout(600, connect=10),
+                trust_env=False,
+                headers={"Authorization": "Bearer " + key} if key else {},
+            )
+            return self
         model = require_model("qwen")
         binary = executable("llama-server")
         with socket.socket() as sock:
             sock.bind(("127.0.0.1", 0))
             port = sock.getsockname()[1]
         self.url = f"http://127.0.0.1:{port}"
+        self.endpoint = self.url + "/v1/chat/completions"
         self.log = (self.cache / "semantic-server.log").open("wb")
         self.client = httpx.Client(timeout=600, trust_env=False)
         for gpu in [99, 0]:
@@ -254,7 +269,7 @@ class LocalSemantic:
     def chat(self, prompt):
         self.control.check()
         body = dict(
-            model="local",
+            model=self.api["model"] if self.api else "local",
             messages=[
                 dict(
                     role="system",
@@ -264,14 +279,17 @@ class LocalSemantic:
             ],
             temperature=0.4,
             max_tokens=2048,
-            response_format={"type": "json_object"},
-            chat_template_kwargs={"enable_thinking": False},
         )
+        if not self.api:
+            body.update(
+                response_format={"type": "json_object"},
+                chat_template_kwargs={"enable_thinking": False},
+            )
         results = queue.Queue()
 
         def request():
             try:
-                results.put(self.client.post(self.url + "/v1/chat/completions", json=body))
+                results.put(self.client.post(self.endpoint, json=body))
             except Exception as error:
                 results.put(error)
 
@@ -282,13 +300,31 @@ class LocalSemantic:
             thread.join(0.25)
         response = results.get()
         if isinstance(response, Exception):
+            if self.api and isinstance(response, httpx.HTTPError):
+                raise RuntimeError(
+                    "翻译服务连接失败或超时，请检查 API 地址与网络后重试。"
+                ) from None
             raise response
+        if self.api and not response.is_success:
+            raise RuntimeError(
+                f"翻译服务返回 HTTP {response.status_code}，请检查 API 地址、模型、密钥或服务配额。"
+            )
         response.raise_for_status()
         self.control.check()
-        text = response.json()["choices"][0]["message"]["content"]
+        try:
+            text = response.json()["choices"][0]["message"]["content"]
+            if not isinstance(text, str):
+                raise ValueError("回复内容不是文字")
+        except (KeyError, IndexError, TypeError, ValueError):
+            raise ValueError(
+                "模型未返回有效文字，请使用支持 Chat Completions 的对话模型。"
+            ) from None
         text = re.sub(r"<think>.*?</think>", "", text, flags=re.S).strip()
         text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text)
-        return json.loads(text)
+        result = json.loads(text)
+        if not isinstance(result, dict):
+            raise ValueError("模型回复须为 JSON 对象")
+        return result
 
     def __exit__(self, *_):
         if self.child and self.child.poll() is None:

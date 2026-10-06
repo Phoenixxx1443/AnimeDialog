@@ -1,14 +1,14 @@
 VSVersionInfo(
   ffi=FixedFileInfo(
-    filevers=(1, 1, 2, 0), prodvers=(1, 1, 2, 0),
+    filevers=(1, 1, 3, 0), prodvers=(1, 1, 3, 0),
     mask=0x3f, flags=0x0, OS=0x40004, fileType=0x1, subtype=0x0,
     date=(0, 0)),
   kids=[StringFileInfo([StringTable('040904b0', [
     StringStruct('CompanyName', 'AnimeDialog'),
     StringStruct('FileDescription', 'AnimeDialog local video dialogue review'),
-    StringStruct('FileVersion', '1.1.2'),
+    StringStruct('FileVersion', '1.1.3'),
     StringStruct('InternalName', 'AnimeDialog'),
     StringStruct('OriginalFilename', 'AnimeDialog.exe'),
     StringStruct('ProductName', 'AnimeDialog'),
-    StringStruct('ProductVersion', '1.1.2')])]),
+    StringStruct('ProductVersion', '1.1.3')])]),
     VarFileInfo([VarStruct('Translation', [1033, 1200])])])

@@ -27,7 +27,14 @@ from PySide6.QtWidgets import (
 from .domain import clone, parse_stamp, stamp
 from .media import frame
 from .models import MODEL_SPECS, digest, download_model, import_model, model_path
-from .settings import executable, models_root, save_settings, settings
+from .settings import (
+    executable,
+    models_root,
+    protected_key,
+    save_settings,
+    settings,
+    translation_endpoint,
+)
 
 
 def button(text, slot):
@@ -230,6 +237,94 @@ class ModelsDialog(QDialog):
             super().reject()
 
 
+class TranslationDialog(QDialog):
+    def __init__(self, parent, selected_count, episode_title):
+        super().__init__(parent)
+        self.setWindowTitle("翻译原文")
+        self.setMinimumWidth(550)
+        self.config = settings().get("translation", {})
+        layout = QVBoxLayout(self)
+        note = QLabel("把语音识别的原文翻译为简体中文，无需字幕。也可直接在编辑区手动填写译文。")
+        note.setWordWrap(True)
+        layout.addWidget(note)
+        form = QFormLayout()
+        self.scope = QComboBox()
+        if selected_count:
+            self.scope.addItem(f"选中台词（{selected_count} 条，已有译文生成新建议）", "selected")
+        if episode_title:
+            self.scope.addItem(episode_title + " · 仅补充空白译文", "episode")
+        self.scope.addItem("整个作品 · 仅补充空白译文", "all")
+        form.addRow("翻译范围", self.scope)
+        self.mode = QComboBox()
+        self.mode.addItem("本地 Qwen3（离线）", "local")
+        self.mode.addItem("大模型 API（Chat Completions 兼容接口）", "api")
+        self.mode.setCurrentIndex(max(0, self.mode.findData(self.config.get("mode", "local"))))
+        form.addRow("翻译方式", self.mode)
+        layout.addLayout(form)
+        self.api_fields = QWidget()
+        api_form = QFormLayout(self.api_fields)
+        api_form.setContentsMargins(0, 0, 0, 0)
+        self.url = QLineEdit(self.config.get("url", ""))
+        self.url.setPlaceholderText("https://你的服务地址/v1（也可填写完整接口地址）")
+        self.model = QLineEdit(self.config.get("model", ""))
+        self.model.setPlaceholderText("填写服务提供的模型 ID")
+        self.key = QLineEdit()
+        self.key.setEchoMode(QLineEdit.Password)
+        self.key.setPlaceholderText("API Key；本机免认证服务可留空")
+        api_form.addRow("API 地址", self.url)
+        api_form.addRow("模型名称", self.model)
+        api_form.addRow("API Key", self.key)
+        info = QLabel(
+            "API 模式会将所选原文及上下文发送到你填写的服务；视频、音频不上传。\n"
+            "密钥由当前 Windows 账号加密保存；更换地址后请重新填写密钥。"
+        )
+        info.setWordWrap(True)
+        api_form.addRow(info)
+        layout.addWidget(self.api_fields)
+        self.local_info = QLabel("本地模式使用“模型与工具”中的 Qwen3 和 llama.cpp。")
+        self.local_info.setWordWrap(True)
+        layout.addWidget(self.local_info)
+        self.mode.currentIndexChanged.connect(self.update_mode)
+        self.update_mode()
+        try:
+            encrypted = settings().get("translation_keys", {}).get(self.config.get("url", ""), "")
+            self.key.setText(protected_key(encrypted, decrypt=True))
+        except ValueError:
+            self.key.setPlaceholderText("已保存密钥无法读取，请重新输入")
+        self.url.textEdited.connect(lambda _: self.key.clear())
+        buttons = confirmation_buttons()
+        buttons.button(QDialogButtonBox.Ok).setText("开始翻译")
+        buttons.accepted.connect(self.accept_checked)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def update_mode(self):
+        api = self.mode.currentData() == "api"
+        self.api_fields.setVisible(api)
+        self.local_info.setVisible(not api)
+
+    def accept_checked(self):
+        try:
+            self.config = dict(self.config, mode=self.mode.currentData())
+            s = settings()
+            if self.config["mode"] == "api":
+                url = translation_endpoint(self.url.text())
+                model = self.model.text().strip()
+                if not model:
+                    raise ValueError("请填写服务提供的模型名称。")
+                self.config.update(url=url, model=model)
+                keys = s.setdefault("translation_keys", {})
+                if self.key.text().strip():
+                    keys[url] = protected_key(self.key.text().strip())
+                else:
+                    keys.pop(url, None)
+            s["translation"] = self.config
+            save_settings(s)
+            self.accept()
+        except (ValueError, OSError) as e:
+            QMessageBox.warning(self, "翻译设置未保存", str(e))
+
+
 class EpisodeDialog(QDialog):
     def __init__(self, episode, parent):
         super().__init__(parent)
@@ -296,7 +391,10 @@ class EpisodeDialog(QDialog):
         layout.addWidget(self.attached_target)
         self.speakers = QCheckBox("自动分离不同声音")
         self.speakers.setChecked(episode.get("options", {}).get("speakers", True))
-        self.semantic = QCheckBox("生成中文翻译和人物姓名候选")
+        self.semantic = QCheckBox("本地生成中文翻译和人物姓名候选")
+        self.semantic.setToolTip(
+            "也可取消此项，识别完成后使用“翻译原文”手动或通过大模型 API 补译。"
+        )
         self.semantic.setChecked(episode.get("options", {}).get("semantic", True))
         self.ocr = QCheckBox("提取画面中的烧录中文字幕")
         self.ocr.setChecked(bool(episode.get("ocr_regions")))
@@ -534,7 +632,7 @@ class ProposalsDialog(QDialog):
     def __init__(self, project, parent):
         super().__init__(parent)
         self.project = project
-        self.setWindowTitle("识别与回导建议")
+        self.setWindowTitle("识别、翻译与回导建议")
         self.resize(950, 640)
         layout = QVBoxLayout(self)
         layout.addWidget(
@@ -544,6 +642,8 @@ class ProposalsDialog(QDialog):
         )
         self.table = QTableWidget(0, 3)
         self.table.setHorizontalHeaderLabels(["时间与版本", "当前人工版本", "新建议"])
+        self.table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.table.setSelectionMode(QTableWidget.ExtendedSelection)
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table.setWordWrap(True)
         layout.addWidget(self.table)
@@ -587,23 +687,30 @@ class ProposalsDialog(QDialog):
                     + "\n"
                     + candidate.get("translation", "（中文不变）")
                     + "\n"
-                    + self.project.role(candidate)
+                    + self.project.role(dict(current, **candidate))
+                    + "\n"
+                    + candidate.get("translation_source", "")
                 ),
             )
         self.table.resizeRowsToContents()
 
     def accept_selected(self):
-        i = self.table.currentRow()
-        if i >= 0:
-            self.project.accept_proposal(self.items[i]["id"])
+        ids = [
+            self.items[index.row()]["id"] for index in self.table.selectionModel().selectedRows()
+        ]
+        if ids:
+            for id in ids:
+                self.project.accept_proposal(id)
             self.changed.emit()
             self.reload()
 
     def ignore_selected(self):
-        i = self.table.currentRow()
-        if i >= 0:
+        ids = [
+            self.items[index.row()]["id"] for index in self.table.selectionModel().selectedRows()
+        ]
+        if ids:
             with self.project.db:
-                self.project.db.execute(
-                    "UPDATE proposals SET status='ignored' WHERE id=?", (self.items[i]["id"],)
+                self.project.db.executemany(
+                    "UPDATE proposals SET status='ignored' WHERE id=?", [(id,) for id in ids]
                 )
             self.reload()

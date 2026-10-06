@@ -174,10 +174,15 @@ class Project:
                     (label, dumps(history), now()),
                 )
 
-    def edit(self, id, **fields):
+    def edit(self, id, label="编辑台词", **fields):
         row = self.get("utterances", id)
         if row is None:
             raise ValueError("台词已不存在")
+        if "translation" in fields and fields["translation"] != row["translation"]:
+            fields.setdefault(
+                "translation_source", "人工翻译" if fields["translation"].strip() else ""
+            )
+            fields.setdefault("text_review", "pending")
         if (
             row["turns"]
             and "translation" in fields
@@ -201,7 +206,7 @@ class Project:
                 )
             fields["speaker_review"] = "pending"
         row.update(fields)
-        self.commit("编辑台词", [("utterances", row, id)])
+        self.commit(label, [("utterances", row, id)])
 
     def history_step(self, redo=False):
         entry = self.db.execute(
@@ -331,7 +336,7 @@ class Project:
             changes.append(("utterances", x, x["id"]))
         self.commit("合并台词", changes)
 
-    def suggest(self, id, candidate, base_revision=None, source="machine"):
+    def suggest(self, id, candidate, base_revision=None, source="machine", proposal_id=None):
         r = self.get("utterances", id)
         if not r:
             return
@@ -339,9 +344,9 @@ class Project:
         candidate["__proposal_source"] = source
         with self.db:
             self.db.execute(
-                "INSERT INTO proposals VALUES(?,?,?,?,?)",
+                "INSERT OR IGNORE INTO proposals VALUES(?,?,?,?,?)",
                 (
-                    uid(),
+                    proposal_id or uid(),
                     id,
                     r["revision"] if base_revision is None else base_revision,
                     dumps(candidate),
@@ -364,15 +369,14 @@ class Project:
         source = candidate.pop("__proposal_source", "machine")
         protected = ["id", "episode_id", "revision"] + (["deleted"] if source != "import" else [])
         candidate = {k: v for k, v in candidate.items() if k not in protected}
-        r.update(candidate)
         if source != "import":
             if any(k in candidate for k in ["character_ids", "turns", "start_ms", "end_ms"]):
-                r["speaker_review"] = "pending"
+                candidate["speaker_review"] = "pending"
             if any(
                 k in candidate for k in ["original", "translation", "turns", "start_ms", "end_ms"]
             ):
-                r["text_review"] = "pending"
-        self.commit("接受识别建议", [("utterances", r, r["id"])])
+                candidate["text_review"] = "pending"
+        self.edit(r["id"], label="接受建议", **candidate)
         with self.db:
             self.db.execute("UPDATE proposals SET status='accepted' WHERE id=?", (id,))
 

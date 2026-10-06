@@ -4,9 +4,9 @@
 
 Local dialogue transcription and subtitle editing for anime and TV series, with speaker diarization, bilingual translation, and SRT export.
 
-**当前版本：1.1.2 · Windows 11 x64 · Python 3.12+ · MIT**
+**当前版本：1.1.3 · Windows 11 x64 · Python 3.12+ · MIT**
 
-AnimeDialog 在本机完成视频处理。首次使用可下载模型，也可导入已有模型；模型准备好后，识别、翻译和人物建议均可离线运行。
+AnimeDialog 默认在本机处理。首次使用可下载模型，也可导入已有模型；模型准备好后，识别、翻译和人物建议均可离线运行。翻译也可手动填写，或自行配置大模型 API。
 
 适合制作人物台词本、提取视频字幕、生成双语 SRT、核对对白和翻译字幕。
 
@@ -14,13 +14,14 @@ AnimeDialog 在本机完成视频处理。首次使用可下载模型，也可�
 
 - **导入多集视频：** 支持 MP4、MKV、MOV 等格式，同一作品的多集共享人物、别名和声音样本。
 - **生成双语台词：** 识别原声及时间轴，优先利用内嵌或附加字幕；可调整字幕区域后提取烧录字幕。默认生成原文与简体中文对照，中文原声保留一份原文。
+- **无字幕翻译：** 手动输入译文，或使用本地 Qwen3、Chat Completions 兼容 API，翻译选句或批量补充空白译文。已有译文进入建议比较，保留人工修改。
 - **提出人物归属建议：** 结合声音特征、称呼和上下文提出姓名与归属候选，保留依据；证据不足时使用临时人物名，等待人工确认。
 - **对照视频审核：** 点击台词定位视频，搜索、筛选、循环本句，编辑原文、译文、人物、时间和备注；支持新增、删除、拆分、合并及批量归类。
 - **保存人工修改：** 人物确认与文字校对分别记录，支持自动保存、撤销和重做；重新识别及 HTML 回导结果进入建议比较，人工修改不会自动被覆盖。
 - **导出台词本：** 支持 Word、离线 HTML、TXT、SRT 和 JSON。HTML 可选择本地视频进行人工归类，保存后重新导入软件。
 - **管理任务与模型：** 队列支持暂停、继续、取消和重试；已完成阶段保存检查点，模型支持本地导入、下载恢复及完整性校验。
 
-1.1.2 的播放器支持 **0.5×、0.75×、1×、1.25×、1.5×、2×、3×、5×**，以及 **原始比例、16:9、4:3、1:1、21:9、铺满**。退出软件后保存倍速、画幅、音量和布局。
+播放器支持 **0.5×、0.75×、1×、1.25×、1.5×、2×、3×、5×**，以及 **原始比例、16:9、4:3、1:1、21:9、铺满**。退出软件后保存倍速、画幅、音量和布局。
 
 ## 安装
 
@@ -28,8 +29,8 @@ Windows 安装包包含 Python、Qt、播放器及处理引擎，使用者无需
 
 从 [Releases](https://github.com/Phoenixxx1443/AnimeDialog/releases/latest) 下载：
 
-- **[Windows 安装包](https://github.com/Phoenixxx1443/AnimeDialog/releases/download/v1.1.2/AnimeDialog-1.1.2-Windows-x64-Setup.exe)**：下载后运行即可安装。
-- **[源码压缩包](https://github.com/Phoenixxx1443/AnimeDialog/releases/download/v1.1.2/AnimeDialog-1.1.2-Source.zip)**：解压后可从源码运行或自行打包。
+- **[Windows 安装包](https://github.com/Phoenixxx1443/AnimeDialog/releases/download/v1.1.3/AnimeDialog-1.1.3-Windows-x64-Setup.exe)**：下载后运行即可安装。
+- **[源码压缩包](https://github.com/Phoenixxx1443/AnimeDialog/releases/download/v1.1.3/AnimeDialog-1.1.3-Source.zip)**：解压后可从源码运行或自行打包。
 
 升级前关闭 AnimeDialog，安装到原目录；项目与已下载模型可以继续使用。大型附件通过 Releases 提供，不作为 Git 文件提交。
 
@@ -65,6 +66,15 @@ Windows 安装包包含 Python、Qt、播放器及处理引擎，使用者无需
 
 “人物已确认”和“文字已校对”分别保存。自动识别、声音匹配和姓名推测都是候选，人工核对后才视为审核完成。
 
+没有字幕时，先完成原声识别，再用以下方式填写译文：
+
+- **手动翻译：** 选中台词，点击“手动翻译”或按 **Ctrl+3**，在中文框输入；自动保存并标记为人工翻译。
+- **大模型翻译：** 点击“翻译原文”或按 **Ctrl+T**，选择选中台词、当前集补译或整个作品补译。可使用本地 Qwen3，或填写兼容 API 的地址、模型 ID 和 API Key。地址支持 Base URL（如 `https://你的服务/v1`）及完整 `/chat/completions` 地址；本机服务允许 HTTP。
+
+使用 API 而未安装 Qwen3 时，在“语言、音轨与字幕”取消“本地生成中文翻译和人物姓名候选”，识别完成后单独翻译。API 模式只发送原文和上下文，视频与音频不上传；密钥由当前 Windows 账号加密保存，不写入作品或导出文件。接口协议可参考 [Chat Completions 文档](https://api-docs.deepseek.com/api/create-chat-completion/)。
+
+空白译文直接补齐并等待文字校对；已有译文及处理期间修改的台词进入“识别、翻译与回导建议”。可用 Ctrl / Shift 多选建议后接受或忽略。翻译任务支持暂停、继续和重试，译文生成不会确认人物。
+
 ### 4. 导出或回导
 
 点击“导出台词本”，选择格式、范围及时间顺序或人物分组。SRT 按剧集分别导出，可选原文、中文或双语。
@@ -86,6 +96,7 @@ Windows 安装包包含 Python、Qt、播放器及处理引擎，使用者无需
 | 上一句 / 下一句 | Alt+↑ / Alt+↓ |
 | 后退 / 前进 2 秒 | Alt+← / Alt+→ |
 | 搜索 / 保存 | Ctrl+F / Ctrl+S |
+| 手动翻译 / 大模型翻译 | Ctrl+3 / Ctrl+T |
 | 批量归类 | Ctrl+Shift+B |
 | 撤销 / 重做项目操作 | Ctrl+Alt+Z / Ctrl+Alt+Y |
 | 恢复默认布局 | Ctrl+0 |
@@ -121,6 +132,7 @@ py -3.12 -m venv .venv
 .venv\Scripts\python.exe -m pip install -e ".[dev]"
 .venv\Scripts\ruff.exe check animedialog main.py
 .venv\Scripts\ruff.exe format animedialog main.py --check
+.venv\Scripts\python.exe -m scripts.test_translation
 .venv\Scripts\pyinstaller.exe AnimeDialog.spec --noconfirm
 ```
 

@@ -199,6 +199,13 @@ class WorkspaceMixin:
         )
         c("models", "模型与工具", self.models, "Ctrl+Shift+M")
         c(
+            "translate",
+            "翻译原文",
+            self.translate_original,
+            "Ctrl+T",
+            "翻译所选原文或批量补译；支持本地模型和大模型 API",
+        )
+        c(
             "undo",
             "撤销项目操作",
             lambda: self.history(False),
@@ -251,11 +258,11 @@ class WorkspaceMixin:
         c("search", "搜索台词", self.focus_search, "Ctrl+F")
         c("table", "焦点移到台词列表", lambda: self.table.setFocus(), "Ctrl+1")
         c("original", "编辑原声文字", lambda: self.focus_text(self.original), "Ctrl+2")
-        c("translation", "编辑中文对照", lambda: self.focus_text(self.translation), "Ctrl+3")
+        c("translation", "手动翻译", lambda: self.focus_text(self.translation), "Ctrl+3")
         c("person", "选择当前人物", self.focus_person, "Ctrl+4")
         c("reset_filters", "清除全部筛选", self.clear_filters)
         c("reset_layout", "恢复默认布局", self.reset_layout, "Ctrl+0")
-        c("proposals", "识别与回导建议", self.proposals)
+        c("proposals", "识别、翻译与回导建议", self.proposals)
         c("statistics", "审核统计", self.review_statistics)
         c("shortcuts", "快捷键速查", self.show_shortcuts, "F1")
         c("help", "中文使用说明", self.help, "Shift+F1")
@@ -281,6 +288,7 @@ class WorkspaceMixin:
                     "statistics",
                 ],
             ),
+            ("翻译", ["translation", "translate", "proposals"]),
             ("播放", ["play", "previous", "next", "back", "forward", "loop", "preview"]),
             (
                 "视图",
@@ -304,7 +312,7 @@ class WorkspaceMixin:
         bar.setMovable(False)
         bar.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         self.addToolBar(bar)
-        for key in ["new", "open", "add_video", "process", "export"]:
+        for key in ["new", "open", "add_video", "process", "translate", "export"]:
             if key in ["process", "export"]:
                 bar.addSeparator()
             bar.addAction(self.commands[key])
@@ -646,6 +654,7 @@ class WorkspaceMixin:
         texts = QHBoxLayout()
         self.original = QPlainTextEdit()
         self.translation = QPlainTextEdit()
+        self.translation.setPlaceholderText("无字幕时可手动输入译文，或点击“翻译原文”")
         for label, widget, key in [
             ("原声文字 · Ctrl+2", self.original, "original"),
             ("中文对照 · Ctrl+3", self.translation, "translation"),
@@ -659,6 +668,14 @@ class WorkspaceMixin:
             column.addWidget(widget, 1)
             texts.addLayout(column, 1)
         body_layout.addLayout(texts, 1)
+        translate = QHBoxLayout()
+        self.translation_source = QLabel("译文来源：尚无译文")
+        self.translation_source.setObjectName("muted")
+        self.translation_source.setWordWrap(True)
+        translate.addWidget(self.translation_source, 1)
+        translate.addWidget(self.push("translation"))
+        translate.addWidget(self.push("translate"))
+        body_layout.addLayout(translate)
         who = QHBoxLayout()
         who.addWidget(QLabel("人物"))
         self.person = QComboBox()
@@ -742,6 +759,7 @@ class WorkspaceMixin:
             "add_video",
             "import",
             "process",
+            "translate",
             "export",
             "undo",
             "redo",
@@ -938,6 +956,7 @@ class WorkspaceMixin:
             "assign",
             "turns",
             "split",
+            "translate",
             "merge",
             "delete",
             "evidence",

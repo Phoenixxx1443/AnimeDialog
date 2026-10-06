@@ -31,6 +31,7 @@ from .dialogs import (
     ExportDialog,
     ModelsDialog,
     ProposalsDialog,
+    TranslationDialog,
     TurnsDialog,
     WorkThread,
 )
@@ -462,6 +463,7 @@ class MainWindow(WorkspaceMixin, QMainWindow):
         self.end.setText(stamp(r["end_ms"]))
         self.original.setPlainText(r["original"])
         self.translation.setPlainText(r["translation"])
+        self.translation_source.setText("译文来源：" + (r["translation_source"] or "尚无译文"))
         self.notes.setText(r["notes"])
         self.person.setCurrentIndex(
             max(
@@ -497,6 +499,9 @@ class MainWindow(WorkspaceMixin, QMainWindow):
             self.editor_dirty = True
             if self.sender() == self.person:
                 self.person_dirty = True
+            if self.sender() in [self.original, self.translation]:
+                with QSignalBlocker(self.text_review):
+                    self.text_review.setChecked(False)
             self.set_save_status("正在编辑…", "dirty")
             self.save_timer.start(650)
 
@@ -521,6 +526,10 @@ class MainWindow(WorkspaceMixin, QMainWindow):
                 text_review="confirmed" if self.text_review.isChecked() else "pending",
                 speaker_review="confirmed" if self.speaker_review.isChecked() else "pending",
             )
+            # Background translation may fill an untouched field while the user edits notes.
+            for key, value in fields.items():
+                if value == self.current_row.get(key):
+                    fields[key] = r.get(key, value)
             if self.person_dirty:
                 fields.update(
                     character_ids=[cid] if cid else [], turns=[], evidence=["人工调整人物归属"]
@@ -546,6 +555,12 @@ class MainWindow(WorkspaceMixin, QMainWindow):
             self.editor_dirty = False
             self.person_dirty = False
             self.loading = True
+            for key, widget in [("original", self.original), ("translation", self.translation)]:
+                if widget.toPlainText() != self.current_row[key]:
+                    widget.setPlainText(self.current_row[key])
+            self.translation_source.setText(
+                "译文来源：" + (self.current_row["translation_source"] or "尚无译文")
+            )
             self.speaker_review.setChecked(self.current_row["speaker_review"] == "confirmed")
             self.text_review.setChecked(self.current_row["text_review"] == "confirmed")
             self.loading = False
@@ -853,6 +868,43 @@ class MainWindow(WorkspaceMixin, QMainWindow):
 
     def models(self):
         ModelsDialog(self).exec()
+
+    def translate_original(self):
+        if not self.require_project() or not self.save_editor():
+            return
+        ids = self.selected_ids()
+        episode_id = self.current_episode or (
+            self.current_row["episode_id"] if self.current_row else None
+        )
+        episode = self.project.get("episodes", episode_id) if episode_id else None
+        dialog = TranslationDialog(self, len(ids), episode["title"] if episode else None)
+        if not dialog.exec():
+            return
+        scope = dialog.scope.currentData()
+        rows = (
+            [self.project.get("utterances", id) for id in ids]
+            if scope == "selected"
+            else self.project.rows(episode_id if scope == "episode" else None)
+        )
+        groups = {}
+        for r in rows:
+            if (
+                r
+                and not r["deleted"]
+                and r["original"].strip()
+                and (scope == "selected" or not r["translation"].strip())
+            ):
+                groups.setdefault(r["episode_id"], []).append(r["id"])
+        if not groups:
+            self.warn("所选范围没有可翻译的原文；请先识别语音，或选择需要重新翻译的台词。")
+            return
+        for ep, targets in groups.items():
+            job = self.project.new_job(
+                ep, dict(task="translate", target_ids=targets, translator=dialog.config)
+            )
+            self.project.update_job(job["id"], stage="翻译原文")
+        self.refresh_jobs()
+        self.start_next_job()
 
     def review_statistics(self):
         if not self.require_project() or not self.save_editor():
