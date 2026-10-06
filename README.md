@@ -4,7 +4,7 @@
 
 Local dialogue transcription and subtitle editing for anime and TV series, with speaker diarization, bilingual translation, and SRT export.
 
-**当前版本：1.1.4 · Windows 11 x64 · Python 3.12+ · MIT**
+**当前版本：1.1.5 · Windows 11 x64 · Python 3.12+ · MIT**
 
 AnimeDialog 默认在本机处理。首次使用可下载模型，也可导入已有模型；模型准备好后，识别、翻译和人物建议均可离线运行。翻译也可手动填写，或自行配置大模型 API。
 
@@ -16,6 +16,7 @@ AnimeDialog 默认在本机处理。首次使用可下载模型，也可导入�
 - **生成双语台词：** 识别原声及时间轴，优先利用内嵌或附加字幕；可调整字幕区域后提取烧录字幕。默认生成原文与简体中文对照，中文原声保留一份原文。
 - **无字幕翻译：** 手动输入译文，或使用本地 Qwen3、Chat Completions 兼容 API，翻译选句或批量补充空白译文。已有译文进入建议比较，保留人工修改。
 - **提出人物归属建议：** 结合声音特征、称呼和上下文提出姓名与归属候选，保留依据；证据不足时使用临时人物名，等待人工确认。
+- **简洁模式：** 右上角开关或 Ctrl+Shift+L，只保留人物、视频和双语台词；再次切换恢复完整布局，记住模式选择。
 - **对照视频审核：** 点击台词定位视频，搜索、筛选、循环本句，编辑原文、译文、人物、时间和备注；支持新增、删除、拆分、合并及批量归类。
 - **保存人工修改：** 人物确认与文字校对分别记录，支持自动保存、撤销和重做；重新识别及 HTML 回导结果进入建议比较，人工修改不会自动被覆盖。
 - **按台词剪辑视频：** 独立片段导出页，选择一句或多句台词，调整片段时间和顺序，分段导出或合并为 MP4；支持跨集选句和暂停继续。
@@ -30,8 +31,8 @@ Windows 安装包包含 Python、Qt、播放器及处理引擎，使用者无需
 
 从 [Releases](https://github.com/Phoenixxx1443/AnimeDialog/releases/latest) 下载：
 
-- **[Windows 安装包](https://github.com/Phoenixxx1443/AnimeDialog/releases/download/v1.1.4/AnimeDialog-1.1.4-Windows-x64-Setup.exe)**：下载后运行即可安装。
-- **[源码压缩包](https://github.com/Phoenixxx1443/AnimeDialog/releases/download/v1.1.4/AnimeDialog-1.1.4-Source.zip)**：解压后可从源码运行或自行打包。
+- **[Windows 安装包](https://github.com/Phoenixxx1443/AnimeDialog/releases/download/v1.1.5/AnimeDialog-1.1.5-Windows-x64-Setup.exe)**：下载后运行即可安装。
+- **[源码压缩包](https://github.com/Phoenixxx1443/AnimeDialog/releases/download/v1.1.5/AnimeDialog-1.1.5-Source.zip)**：解压后可从源码运行或自行打包。
 
 升级前关闭 AnimeDialog，安装到原目录；项目与已下载模型可以继续使用。大型附件通过 Releases 提供，不作为 Git 文件提交。
 
@@ -76,6 +77,8 @@ Windows 安装包包含 Python、Qt、播放器及处理引擎，使用者无需
 
 空白译文直接补齐并等待文字校对；已有译文及处理期间修改的台词进入“识别、翻译与回导建议”。可用 Ctrl / Shift 多选建议后接受或忽略。翻译任务支持暂停、继续和重试，译文生成不会确认人物。
 
+右上角勾选 **简洁模式**（或按 **Ctrl+Shift+L**），只显示人物列表、视频播放器和双语台词，仍可搜索、按人物筛选和点击台词定位播放。切换时保存编辑，显示全部剧集并清除隐藏的类型、审核筛选，保留人物和搜索条件。取消勾选恢复完整布局，重启后记住模式；编辑文字、人物或打开片段页的快捷键会切回完整模式。
+
 ### 4. 导出或回导
 
 点击“导出台词本”，选择格式、范围及时间顺序或人物分组。SRT 按剧集分别导出，可选原文、中文或双语。
@@ -113,6 +116,7 @@ Windows 安装包包含 Python、Qt、播放器及处理引擎，使用者无需
 | 片段上移 / 下移 / 移除 / 预览 | 片段列表中 Ctrl+↑ / Ctrl+↓ / Delete / 空格 |
 | 批量归类 | Ctrl+Shift+B |
 | 撤销 / 重做项目操作 | Ctrl+Alt+Z / Ctrl+Alt+Y |
+| 简洁 / 完整模式 | Ctrl+Shift+L |
 | 恢复默认布局 | Ctrl+0 |
 
 文字输入框中的空格、Delete、Ctrl+Z 和 Ctrl+Y 保持正常文字编辑行为。
@@ -148,6 +152,7 @@ py -3.12 -m venv .venv
 .venv\Scripts\ruff.exe format animedialog main.py --check
 .venv\Scripts\python.exe -m scripts.test_translation
 .venv\Scripts\python.exe -m scripts.test_clips
+.venv\Scripts\python.exe -m scripts.test_simple_mode
 .venv\Scripts\pyinstaller.exe AnimeDialog.spec --noconfirm
 ```
 

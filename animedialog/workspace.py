@@ -275,6 +275,14 @@ class WorkspaceMixin:
         c("person", "选择当前人物", self.focus_person, "Ctrl+4")
         c("reset_filters", "清除全部筛选", self.clear_filters)
         c("reset_layout", "恢复默认布局", self.reset_layout, "Ctrl+0")
+        c(
+            "simple",
+            "简洁模式",
+            self.set_simple_mode,
+            "Ctrl+Shift+L",
+            "仅显示人物、视频和台词；再次切换恢复完整界面",
+        )
+        self.commands["simple"].setCheckable(True)
         c("proposals", "识别、翻译与回导建议", self.proposals)
         c("statistics", "审核统计", self.review_statistics)
         c("shortcuts", "快捷键速查", self.show_shortcuts, "F1")
@@ -325,6 +333,7 @@ class WorkspaceMixin:
                     "clips",
                     "reset_filters",
                     "reset_layout",
+                    "simple",
                 ],
             ),
             ("帮助", ["shortcuts", "help"]),
@@ -347,6 +356,7 @@ class WorkspaceMixin:
         bar.addWidget(spacer)
         bar.addAction(self.commands["models"])
         bar.addAction(self.commands["shortcuts"])
+        self.full_only = [bar, self.menuBar(), self.statusBar()]
 
     def push(self, key, label=None, primary=False):
         action = self.commands[key]
@@ -371,6 +381,9 @@ class WorkspaceMixin:
         return widget
 
     def build_layout(self):
+        self.simple_mode = False
+        self.full_layout = {}
+        self.full_tab = 0
         root = QWidget()
         outer = QVBoxLayout(root)
         outer.setContentsMargins(12, 10, 12, 6)
@@ -388,6 +401,12 @@ class WorkspaceMixin:
         header.addWidget(self.heading, 2)
         header.addWidget(self.project_summary, 1)
         header.addWidget(self.version_badge)
+        header.addStretch()
+        self.mode_toggle = QCheckBox("简洁模式")
+        self.mode_toggle.setToolTip("仅显示人物、视频和台词 · Ctrl+Shift+L")
+        self.mode_toggle.clicked.connect(self.commands["simple"].trigger)
+        header.addWidget(self.mode_toggle)
+        self.full_only.extend([self.heading, self.project_summary, self.version_badge])
         outer.addLayout(header)
         self.splitter = QSplitter(Qt.Horizontal)
         self.splitter.setChildrenCollapsible(False)
@@ -433,7 +452,9 @@ class WorkspaceMixin:
         self.characters.setTextElideMode(Qt.ElideRight)
         self.characters.itemSelectionChanged.connect(self.character_selected)
         layout.addWidget(self.characters, 1)
-        controls = QHBoxLayout()
+        people_tools = QWidget()
+        controls = QHBoxLayout(people_tools)
+        controls.setContentsMargins(0, 0, 0, 0)
         add = QPushButton("增加")
         add.clicked.connect(self.add_character)
         controls.addWidget(add)
@@ -447,7 +468,8 @@ class WorkspaceMixin:
                 ],
             )
         )
-        layout.addLayout(controls)
+        layout.addWidget(people_tools)
+        self.full_only.extend([episode_box, people_tools])
         self.sidebar_splitter.addWidget(episode_box)
         self.sidebar_splitter.addWidget(people_box)
         self.splitter.addWidget(self.sidebar_splitter)
@@ -566,6 +588,7 @@ class WorkspaceMixin:
         self.worker_status.setMinimumWidth(0)
         layout.addWidget(self.worker_status)
         self.center_splitter.addWidget(queue)
+        self.full_only.append(queue)
         self.splitter.addWidget(self.center_splitter)
 
     def build_transcript(self):
@@ -579,7 +602,9 @@ class WorkspaceMixin:
         self.search.setPlaceholderText("搜索原文、中文、人物或备注  ·  Ctrl+F")
         self.search.textChanged.connect(lambda: self.filter_timer.start(200))
         layout.addWidget(self.search)
-        filters = QHBoxLayout()
+        filter_tools = QWidget()
+        filters = QHBoxLayout(filter_tools)
+        filters.setContentsMargins(0, 0, 0, 0)
         self.kind = QComboBox()
         self.kind.addItem("全部类型", None)
         for kind in KINDS:
@@ -597,7 +622,7 @@ class WorkspaceMixin:
         self.review_filter.currentIndexChanged.connect(self.refresh_rows)
         filters.addWidget(self.review_filter, 1)
         filters.addWidget(self.push("reset_filters", "清除筛选"))
-        layout.addLayout(filters)
+        layout.addWidget(filter_tools)
         self.scope_label = QLabel("全部剧集 · 全部人物")
         self.scope_label.setObjectName("muted")
         layout.addWidget(self.scope_label)
@@ -630,7 +655,9 @@ class WorkspaceMixin:
         self.table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self.table_menu)
         listing_layout.addWidget(self.table, 1)
-        tools = QHBoxLayout()
+        transcript_tools = QWidget()
+        tools = QHBoxLayout(transcript_tools)
+        tools.setContentsMargins(0, 0, 0, 0)
         self.row_count = QLabel("0 条台词")
         self.row_count.setObjectName("muted")
         tools.addWidget(self.row_count, 1)
@@ -638,24 +665,29 @@ class WorkspaceMixin:
         tools.addWidget(self.push("assign", "批量归类"))
         tools.addWidget(self.push("add_clip", "片段"))
         tools.addWidget(self.menu_button("更多", ["merge", "delete", "proposals", "statistics"]))
-        listing_layout.addLayout(tools)
+        listing_layout.addWidget(transcript_tools)
         self.review_splitter.addWidget(listing)
         self.build_editor()
         layout.addWidget(self.review_splitter, 1)
-        follow_row = QHBoxLayout()
+        follow_tools = QWidget()
+        follow_row = QHBoxLayout(follow_tools)
+        follow_row.setContentsMargins(0, 0, 0, 0)
         self.follow = QCheckBox("跟随播放高亮")
         self.follow.setChecked(True)
         self.follow.setToolTip("滚动到播放中的台词；编辑文字或多选台词时不会抢走位置")
         follow_row.addWidget(self.follow)
         follow_row.addStretch(1)
         follow_row.addWidget(self.push("pending", "下一待核  F9"))
-        layout.addLayout(follow_row)
+        layout.addWidget(follow_tools)
+        self.full_only.extend(
+            [filter_tools, self.scope_label, transcript_tools, self.editor, follow_tools]
+        )
         self.right_tabs = QTabWidget()
         self.right_tabs.setMinimumWidth(370)
         self.right_tabs.addTab(right, "台词审核")
         self.clips = ClipPanel(self)
         self.right_tabs.addTab(self.clips, "片段导出")
-        self.right_tabs.currentChanged.connect(lambda _: setattr(self, "clip_preview", None))
+        self.right_tabs.currentChanged.connect(self.review_tab_changed)
         self.splitter.addWidget(self.right_tabs)
 
     def build_editor(self):
@@ -843,6 +875,7 @@ class WorkspaceMixin:
         self.search.selectAll()
 
     def focus_text(self, field):
+        self.set_simple_mode(False)
         self.right_tabs.setCurrentIndex(0)
         field.setFocus()
         # ensureWidgetVisible uses a focused text editor's caret rectangle;
@@ -851,6 +884,7 @@ class WorkspaceMixin:
         self.editor_scroll.ensureVisible(center.x(), center.y(), 4, field.height() // 2 + 4)
 
     def focus_person(self):
+        self.set_simple_mode(False)
         self.right_tabs.setCurrentIndex(0)
         self.person.setFocus()
         self.person.showPopup()
@@ -1066,10 +1100,60 @@ class WorkspaceMixin:
         dialog.exec()
 
     def reset_layout(self):
+        simple = self.simple_mode
+        if simple:
+            self.set_simple_mode(False)
         self.splitter.setSizes([210, 430, 770])
         self.sidebar_splitter.setSizes([320, 380])
         self.center_splitter.setSizes([440, 260])
         self.review_splitter.setSizes([240, 470])
+        if simple:
+            self.set_simple_mode(True)
+
+    def review_tab_changed(self, index):
+        self.clip_preview = None
+        if self.simple_mode and index != 0:
+            self.set_simple_mode(False)
+
+    def set_simple_mode(self, enabled):
+        enabled = bool(enabled)
+        if enabled != self.simple_mode and self.project and not self.save_editor():
+            enabled = self.simple_mode
+        with QSignalBlocker(self.mode_toggle), QSignalBlocker(self.commands["simple"]):
+            self.mode_toggle.setChecked(enabled)
+            self.commands["simple"].setChecked(enabled)
+        if enabled == self.simple_mode:
+            return
+        self.simple_mode = enabled
+        panes = [
+            ("sidebar", self.sidebar_splitter),
+            ("player", self.center_splitter),
+            ("review", self.review_splitter),
+        ]
+        if enabled:
+            self.full_layout = {key: widget.saveState() for key, widget in panes}
+            self.full_tab = self.right_tabs.currentIndex()
+            self.right_tabs.setCurrentIndex(0)
+            if self.project:
+                # Hidden episode/type/review filters must not silently exclude dialogue.
+                self.current_episode = None
+                with QSignalBlocker(self.kind), QSignalBlocker(self.review_filter):
+                    self.kind.setCurrentIndex(0)
+                    self.review_filter.setCurrentIndex(0)
+                self.refresh_sidebar()
+                self.refresh_rows()
+        for widget in self.full_only:
+            widget.setVisible(not enabled)
+        self.right_tabs.tabBar().setVisible(not enabled)
+        for column in [4, 5]:
+            self.table.setColumnHidden(column, enabled)
+        if not enabled:
+            for key, widget in panes:
+                if key in self.full_layout:
+                    widget.restoreState(self.full_layout[key])
+            if self.right_tabs.currentIndex() == 0:
+                self.right_tabs.setCurrentIndex(self.full_tab)
+        self.save_workspace()
 
     def restore_workspace(self):
         state = settings().get("workspace", {})
@@ -1090,6 +1174,7 @@ class WorkspaceMixin:
             if speed >= 0:
                 self.speed.setCurrentIndex(speed)
             self.aspect.setCurrentIndex(max(0, self.aspect.findData(state.get("aspect_ratio"))))
+            self.set_simple_mode(bool(state.get("simple_mode", False)))
         except (ValueError, TypeError, AttributeError):
             pass
 
@@ -1100,6 +1185,7 @@ class WorkspaceMixin:
             "volume": self.volume.value(),
             "speed": self.speed.currentData(),
             "aspect_ratio": self.aspect.currentData(),
+            "simple_mode": self.simple_mode,
         }
         for key, widget in [
             ("columns", self.splitter),
@@ -1107,7 +1193,12 @@ class WorkspaceMixin:
             ("player", self.center_splitter),
             ("review", self.review_splitter),
         ]:
-            state[key] = bytes(widget.saveState().toBase64()).decode("ascii")
+            saved = (
+                self.full_layout[key]
+                if self.simple_mode and key in self.full_layout
+                else widget.saveState()
+            )
+            state[key] = bytes(saved.toBase64()).decode("ascii")
         value = settings()
         value["workspace"] = state
         save_settings(value)

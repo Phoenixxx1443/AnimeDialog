@@ -1,7 +1,7 @@
 [Setup]
 AppId={{B9E55BFE-55D0-4709-9828-41D3A2DA1B98}
 AppName=AnimeDialog
-AppVersion=1.1.4
+AppVersion=1.1.5
 AppPublisher=AnimeDialog
 DefaultDirName={localappdata}\Programs\AnimeDialog
 DefaultGroupName=AnimeDialog
@@ -10,7 +10,7 @@ PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=..\release
-OutputBaseFilename=AnimeDialog-1.1.4-Windows-x64-Setup
+OutputBaseFilename=AnimeDialog-1.1.5-Windows-x64-Setup
 SetupIconFile=..\animedialog\assets\app.ico
 Compression=lzma2
 SolidCompression=yes

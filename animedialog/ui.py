@@ -1234,9 +1234,11 @@ class MainWindow(WorkspaceMixin, QMainWindow):
         self.select_record(self.table_model.rows[i]["id"])
 
     def player_error(self, *_):
-        self.worker_status.setText(
-            "视频播放失败：" + self.player.errorString() + "；可点击“生成兼容视频预览”。"
+        message = (
+            "视频播放失败：" + self.player.errorString() + "；可在完整模式中生成兼容视频预览。"
         )
+        self.video_hint.setText(message)
+        self.worker_status.setText(message)
 
     def help(self):
         from PySide6.QtGui import QDesktopServices
