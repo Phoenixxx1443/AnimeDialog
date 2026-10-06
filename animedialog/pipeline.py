@@ -8,7 +8,7 @@ from contextlib import ExitStack
 from .domain import clone, dumps, now, stamp, utterance
 from .engines import Cancelled, Control, Paused, SemanticModel, Voices, transcribe
 from .importers import align_subtitles, read_subtitles, subtitle_target
-from .media import extract_audio, preview_args, probe
+from .media import export_clips, extract_audio, preview_args, probe
 from .settings import executable
 from .store import Project
 
@@ -422,7 +422,7 @@ def process_job(folder, job_id):
     project.update_job(job_id, state="running", error="")
     model_lock = None
     try:
-        if opts.get("task") != "preview" and not (
+        if opts.get("task") not in ["preview", "clips"] and not (
             opts.get("task") == "translate" and opts.get("translator", {}).get("mode") == "api"
         ):
             from PySide6.QtCore import QLockFile
@@ -437,7 +437,9 @@ def process_job(folder, job_id):
                 control.check()
                 control.progress("等待模型", 0, "其他作品正在使用模型，本任务会自动继续")
                 time.sleep(0.5)
-        if opts.get("task") == "translate":
+        if opts.get("task") == "clips":
+            export_clips(project, opts, cache, control)
+        elif opts.get("task") == "translate":
             translate_rows(project, episode, opts, cache, control)
         elif opts.get("task") == "preview":
             target = project.folder / "cache" / (episode["id"] + "-" + job_id + "-preview.mp4")

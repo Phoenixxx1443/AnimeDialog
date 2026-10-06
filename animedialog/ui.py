@@ -59,6 +59,7 @@ class MainWindow(WorkspaceMixin, QMainWindow):
         self.project_lock = None
         self.playing_episode = None
         self.pending_seek = None
+        self.clip_preview = None
         self.resize(1480, 900)
         self.setMinimumSize(1060, 640)
         self.setWindowTitle("AnimeDialog " + __version__ + " · 视频台词整理与审核")
@@ -158,6 +159,7 @@ class MainWindow(WorkspaceMixin, QMainWindow):
             self.current_row = None
             self.playing_episode = None
             self.pending_seek = None
+            self.clip_preview = None
             self.player.setSource(QUrl())
             self.video_hint.setText("点击右侧台词定位视频")
             self.video_hint.setToolTip("")
@@ -179,6 +181,7 @@ class MainWindow(WorkspaceMixin, QMainWindow):
             self.refresh_rows()
             self.refresh_jobs()
             self.editor.setEnabled(False)
+            self.clips.load_project()
             self.update_commands()
         except Exception as e:
             self.warn(e)
@@ -449,6 +452,7 @@ class MainWindow(WorkspaceMixin, QMainWindow):
             self.update_commands()
             return
         self.current_row = self.project.get("utterances", target["id"])
+        self.clip_preview = None
         self.load_editor()
         self.load_video(target["episode_id"])
         self.seek_video(max(0, target["start_ms"] - 300))
@@ -1102,7 +1106,7 @@ class MainWindow(WorkspaceMixin, QMainWindow):
                 self.jobs.addItem("")
             item = self.jobs.item(n)
             item.setText(
-                f"{eps.get(j['episode_id'], '')} · {states.get(j['state'], j['state'])}\n{j.get('stage', '')} {j.get('progress', 0):.0f}% {j.get('error', '')[:60]}"
+                f"{'片段导出' if j['options'].get('task') == 'clips' else eps.get(j['episode_id'], '')} · {states.get(j['state'], j['state'])}\n{j.get('stage', '')} {j.get('progress', 0):.0f}% {j.get('error', '')[:60]}"
             )
             item.setData(Qt.UserRole, j["id"])
             item.setToolTip(j.get("error", "") or j.get("message", ""))
@@ -1160,19 +1164,22 @@ class MainWindow(WorkspaceMixin, QMainWindow):
         if self.player.playbackState() == QMediaPlayer.PlayingState:
             self.player.pause()
         else:
+            if self.clip_preview and self.player.position() >= self.clip_preview["end_ms"]:
+                self.seek_video(self.clip_preview["start_ms"])
+                return
             self.player.play()
 
     def position_changed(self, ms):
         if not self.seek.isSliderDown():
             self.seek.setValue(ms)
         self.clock.setText(stamp(ms)[:-4] + " / " + stamp(self.player.duration())[:-4])
-        if (
-            self.loop.isChecked()
-            and self.current_row
-            and self.current_row["episode_id"] == self.playing_episode
-            and ms >= self.current_row["end_ms"]
-        ):
-            self.player.setPosition(self.current_row["start_ms"])
+        reviewing = self.right_tabs.currentIndex() == 0
+        segment = self.current_row if reviewing else self.clip_preview
+        if segment and segment["episode_id"] == self.playing_episode and ms >= segment["end_ms"]:
+            if self.loop.isChecked():
+                self.player.setPosition(segment["start_ms"])
+            elif not reviewing and self.pending_seek is None:
+                self.player.pause()
         for index, r in enumerate(self.table_model.rows):
             if r["episode_id"] == self.playing_episode and r["start_ms"] <= ms < r["end_ms"]:
                 changed = self.table_model.playing_id != r["id"]
@@ -1181,6 +1188,7 @@ class MainWindow(WorkspaceMixin, QMainWindow):
                 editing = focus and (focus == self.editor or self.editor.isAncestorOf(focus))
                 if (
                     changed
+                    and reviewing
                     and self.follow.isChecked()
                     and not editing
                     and not self.editor_dirty

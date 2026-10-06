@@ -4,7 +4,7 @@
 
 Local dialogue transcription and subtitle editing for anime and TV series, with speaker diarization, bilingual translation, and SRT export.
 
-**当前版本：1.1.3 · Windows 11 x64 · Python 3.12+ · MIT**
+**当前版本：1.1.4 · Windows 11 x64 · Python 3.12+ · MIT**
 
 AnimeDialog 默认在本机处理。首次使用可下载模型，也可导入已有模型；模型准备好后，识别、翻译和人物建议均可离线运行。翻译也可手动填写，或自行配置大模型 API。
 
@@ -18,6 +18,7 @@ AnimeDialog 默认在本机处理。首次使用可下载模型，也可导入�
 - **提出人物归属建议：** 结合声音特征、称呼和上下文提出姓名与归属候选，保留依据；证据不足时使用临时人物名，等待人工确认。
 - **对照视频审核：** 点击台词定位视频，搜索、筛选、循环本句，编辑原文、译文、人物、时间和备注；支持新增、删除、拆分、合并及批量归类。
 - **保存人工修改：** 人物确认与文字校对分别记录，支持自动保存、撤销和重做；重新识别及 HTML 回导结果进入建议比较，人工修改不会自动被覆盖。
+- **按台词剪辑视频：** 独立片段导出页，选择一句或多句台词，调整片段时间和顺序，分段导出或合并为 MP4；支持跨集选句和暂停继续。
 - **导出台词本：** 支持 Word、离线 HTML、TXT、SRT 和 JSON。HTML 可选择本地视频进行人工归类，保存后重新导入软件。
 - **管理任务与模型：** 队列支持暂停、继续、取消和重试；已完成阶段保存检查点，模型支持本地导入、下载恢复及完整性校验。
 
@@ -29,8 +30,8 @@ Windows 安装包包含 Python、Qt、播放器及处理引擎，使用者无需
 
 从 [Releases](https://github.com/Phoenixxx1443/AnimeDialog/releases/latest) 下载：
 
-- **[Windows 安装包](https://github.com/Phoenixxx1443/AnimeDialog/releases/download/v1.1.3/AnimeDialog-1.1.3-Windows-x64-Setup.exe)**：下载后运行即可安装。
-- **[源码压缩包](https://github.com/Phoenixxx1443/AnimeDialog/releases/download/v1.1.3/AnimeDialog-1.1.3-Source.zip)**：解压后可从源码运行或自行打包。
+- **[Windows 安装包](https://github.com/Phoenixxx1443/AnimeDialog/releases/download/v1.1.4/AnimeDialog-1.1.4-Windows-x64-Setup.exe)**：下载后运行即可安装。
+- **[源码压缩包](https://github.com/Phoenixxx1443/AnimeDialog/releases/download/v1.1.4/AnimeDialog-1.1.4-Source.zip)**：解压后可从源码运行或自行打包。
 
 升级前关闭 AnimeDialog，安装到原目录；项目与已下载模型可以继续使用。大型附件通过 Releases 提供，不作为 Git 文件提交。
 
@@ -83,6 +84,16 @@ Windows 安装包包含 Python、Qt、播放器及处理引擎，使用者无需
 
 详细说明见 [中文使用说明](使用说明.html)，下载后可用浏览器打开。
 
+### 5. 按台词裁剪视频
+
+在“台词审核”中用 Ctrl / Shift 选中一句或多句台词，点击列表下方“片段”或按 **Ctrl+Shift+K**，加入独立的“片段导出”页；右键菜单也提供入口。可返回选句继续添加其他剧集的台词，同一句可以重复添加。
+
+拖动片段或使用上移、下移调整顺序。双击片段或点击“预览”定位播放，到片段结尾暂停；F6 可循环。“调整时间”只改变片段的开始与结束，不修改台词时间。片段列表自动保存在作品项目中。
+
+**分段导出**在选择的位置新建子目录，按列表顺序编号保存 MP4；**按顺序合并导出**生成一个 MP4。使用原视频与剧集所选音轨，正常速度输出，保持画面比例；合并时统一首段的画幅、帧率，其他片段留边适配，无声片段保留静音。边界以视频帧精度裁剪，建议先预览核对。输出画质可选最高 1080p、720p 或原分辨率。
+
+导出进入现有任务队列，可暂停、继续和重试，已完成片段可以复用。原视频不修改，已有文件不会被覆盖；查看完成路径可点击“打开导出目录”。
+
 ## 常用快捷键
 
 按 **F1** 查看完整快捷键清单。
@@ -97,6 +108,9 @@ Windows 安装包包含 Python、Qt、播放器及处理引擎，使用者无需
 | 后退 / 前进 2 秒 | Alt+← / Alt+→ |
 | 搜索 / 保存 | Ctrl+F / Ctrl+S |
 | 手动翻译 / 大模型翻译 | Ctrl+3 / Ctrl+T |
+| 加入片段 / 打开片段页 | Ctrl+Shift+K / Ctrl+5 |
+| 返回选句 | Ctrl+1 |
+| 片段上移 / 下移 / 移除 / 预览 | 片段列表中 Ctrl+↑ / Ctrl+↓ / Delete / 空格 |
 | 批量归类 | Ctrl+Shift+B |
 | 撤销 / 重做项目操作 | Ctrl+Alt+Z / Ctrl+Alt+Y |
 | 恢复默认布局 | Ctrl+0 |
@@ -133,6 +147,7 @@ py -3.12 -m venv .venv
 .venv\Scripts\ruff.exe check animedialog main.py
 .venv\Scripts\ruff.exe format animedialog main.py --check
 .venv\Scripts\python.exe -m scripts.test_translation
+.venv\Scripts\python.exe -m scripts.test_clips
 .venv\Scripts\pyinstaller.exe AnimeDialog.spec --noconfirm
 ```
 
@@ -159,6 +174,7 @@ ISCC.exe scripts\installer.iss
 | `animedialog/ui.py`、`workspace.py`、`dialogs.py` | 项目操作、播放器、台词编辑、菜单及快捷键 |
 | `animedialog/exporters.py`、`importers.py` | 导出及旧成果、HTML / JSON 回导 |
 | `animedialog/assets/review.html` | 离线 HTML 查看、视频定位与人工归类 |
+| `animedialog/clips.py`、`media.py` | 片段列表、裁剪与视频合并 |
 | `scripts/` | 工具获取与打包脚本 |
 | `licenses/` | 第三方组件许可与来源记录 |
 

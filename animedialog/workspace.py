@@ -30,6 +30,7 @@ from PySide6.QtWidgets import (
     QSplitter,
     QStyle,
     QTableView,
+    QTabWidget,
     QToolBar,
     QToolButton,
     QTreeWidget,
@@ -38,6 +39,7 @@ from PySide6.QtWidgets import (
 )
 
 from . import __version__
+from .clips import ClipPanel
 from .domain import KINDS, needs_review, stamp
 from .settings import save_settings, settings
 
@@ -76,6 +78,9 @@ QLabel#saveStatus[state="dirty"] { color:#976928; }
 QLabel#saveStatus[state="error"] { color:#be4545; }
 QLabel#videoHint { background:#182337; color:#d5deed; padding:8px; border-radius:6px; }
 QScrollArea { border:0; background:transparent; }
+QTabWidget::pane { border:0; }
+QTabBar::tab { background:#e9eef7; padding:8px 16px; margin-right:4px; border-radius:5px; }
+QTabBar::tab:selected { background:#fff; color:#315ac8; font-weight:600; }
 QSplitter::handle { background:#e3e8f1; }
 QSplitter::handle:hover { background:#b5c7ee; }
 QProgressBar { border:0; border-radius:4px; background:#e9eef7; min-height:8px; max-height:8px; }
@@ -218,6 +223,14 @@ class WorkspaceMixin:
         c("split", "拆分当前台词", self.split_row)
         c("merge", "合并所选台词", self.merge_rows)
         c(
+            "add_clip",
+            "加入片段列表",
+            lambda: self.clips.add_selected(),
+            "Ctrl+Shift+K",
+            "将所选的一句或多句台词加入片段导出页",
+        )
+        c("clips", "片段导出页", lambda: self.right_tabs.setCurrentWidget(self.clips), "Ctrl+5")
+        c(
             "assign",
             "批量归类",
             self.assign_selected,
@@ -256,7 +269,7 @@ class WorkspaceMixin:
         c("loop", "循环本句", self.toggle_loop, "F6")
         c("preview", "生成兼容视频预览", self.preview_video)
         c("search", "搜索台词", self.focus_search, "Ctrl+F")
-        c("table", "焦点移到台词列表", lambda: self.table.setFocus(), "Ctrl+1")
+        c("table", "焦点移到台词列表", self.focus_table, "Ctrl+1")
         c("original", "编辑原声文字", lambda: self.focus_text(self.original), "Ctrl+2")
         c("translation", "手动翻译", lambda: self.focus_text(self.translation), "Ctrl+3")
         c("person", "选择当前人物", self.focus_person, "Ctrl+4")
@@ -267,10 +280,21 @@ class WorkspaceMixin:
         c("shortcuts", "快捷键速查", self.show_shortcuts, "F1")
         c("help", "中文使用说明", self.help, "Shift+F1")
         menus = [
-            ("文件", ["new", "open", "add_video", "import", "save", "export", "models"]),
+            ("文件", ["new", "open", "add_video", "import", "save", "export", "clips", "models"]),
             (
                 "编辑",
-                ["undo", "redo", None, "add_row", "delete", "split", "merge", "assign", "turns"],
+                [
+                    "undo",
+                    "redo",
+                    None,
+                    "add_row",
+                    "delete",
+                    "split",
+                    "merge",
+                    "assign",
+                    "turns",
+                    "add_clip",
+                ],
             ),
             (
                 "审核",
@@ -298,6 +322,7 @@ class WorkspaceMixin:
                     "original",
                     "translation",
                     "person",
+                    "clips",
                     "reset_filters",
                     "reset_layout",
                 ],
@@ -611,6 +636,7 @@ class WorkspaceMixin:
         tools.addWidget(self.row_count, 1)
         tools.addWidget(self.push("add_row", "新增"))
         tools.addWidget(self.push("assign", "批量归类"))
+        tools.addWidget(self.push("add_clip", "片段"))
         tools.addWidget(self.menu_button("更多", ["merge", "delete", "proposals", "statistics"]))
         listing_layout.addLayout(tools)
         self.review_splitter.addWidget(listing)
@@ -624,7 +650,13 @@ class WorkspaceMixin:
         follow_row.addStretch(1)
         follow_row.addWidget(self.push("pending", "下一待核  F9"))
         layout.addLayout(follow_row)
-        self.splitter.addWidget(right)
+        self.right_tabs = QTabWidget()
+        self.right_tabs.setMinimumWidth(370)
+        self.right_tabs.addTab(right, "台词审核")
+        self.clips = ClipPanel(self)
+        self.right_tabs.addTab(self.clips, "片段导出")
+        self.right_tabs.currentChanged.connect(lambda _: setattr(self, "clip_preview", None))
+        self.splitter.addWidget(self.right_tabs)
 
     def build_editor(self):
         self.editor = QGroupBox("台词编辑")
@@ -761,6 +793,7 @@ class WorkspaceMixin:
             "process",
             "translate",
             "export",
+            "clips",
             "undo",
             "redo",
             "search",
@@ -784,7 +817,7 @@ class WorkspaceMixin:
             "translation",
         ]:
             self.commands[key].setEnabled(row)
-        for key in ["delete", "assign"]:
+        for key in ["delete", "assign", "add_clip"]:
             self.commands[key].setEnabled(project and bool(ids))
         self.commands["merge"].setEnabled(project and len(ids) > 1)
         self.commands["add_row"].setEnabled(
@@ -805,10 +838,12 @@ class WorkspaceMixin:
         self.save_status.style().polish(self.save_status)
 
     def focus_search(self):
+        self.right_tabs.setCurrentIndex(0)
         self.search.setFocus()
         self.search.selectAll()
 
     def focus_text(self, field):
+        self.right_tabs.setCurrentIndex(0)
         field.setFocus()
         # ensureWidgetVisible uses a focused text editor's caret rectangle;
         # expose the full editor instead, so Ctrl+2/3 is useful on small screens.
@@ -816,8 +851,13 @@ class WorkspaceMixin:
         self.editor_scroll.ensureVisible(center.x(), center.y(), 4, field.height() // 2 + 4)
 
     def focus_person(self):
+        self.right_tabs.setCurrentIndex(0)
         self.person.setFocus()
         self.person.showPopup()
+
+    def focus_table(self):
+        self.right_tabs.setCurrentIndex(0)
+        self.table.setFocus()
 
     def toggle_loop(self):
         self.loop.setChecked(not self.loop.isChecked())
@@ -957,6 +997,7 @@ class WorkspaceMixin:
             "turns",
             "split",
             "translate",
+            "add_clip",
             "merge",
             "delete",
             "evidence",
